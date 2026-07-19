@@ -1,0 +1,36 @@
+name = "kronotara"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "./build/client"
+
+# ──────────────────────────────────────────────
+# Cloudflare D1 (Serverless SQLite) binding
+# Run: wrangler d1 create kronotara-db
+# Then paste the database_id below
+# ──────────────────────────────────────────────
+[[d1_databases]]
+binding = "DB"           # Accessed as env.DB in loaders/actions
+database_name = "kronotara-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+# ──────────────────────────────────────────────
+# KV Namespace (optional: for session/cache)
+# Run: wrangler kv:namespace create SESSION_KV
+# ──────────────────────────────────────────────
+# [[kv_namespaces]]
+# binding = "SESSION_KV"
+# id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# ──────────────────────────────────────────────
+# Environment variables
+# ──────────────────────────────────────────────
+[vars]
+APP_ENV = "development"
+
+# ──────────────────────────────────────────────
+# Local dev overrides (not deployed)
+# ──────────────────────────────────────────────
+[dev]
+port = 8788
+local_protocol = "http"
