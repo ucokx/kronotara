@@ -23,4 +23,5 @@ export default [
     ]),
     // ── API routes (server-only loaders/actions, no UI) ────────────
     route("api/health", "routes/api/health.ts"), // GET /api/health
+    route("api/ingest", "routes/api/ingest.ts"), // GET /api/ingest
 ];

@@ -2,50 +2,21 @@ import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 // ─────────────────────────────────────────────────────────────────
 // app/components/map/MapView.tsx
 // ─────────────────────────────────────────────────────────────────
-// Full-screen interactive map component.
-//
-// STACK:
-//   - MapLibre GL  → renders the base vector map (OpenFreeMap tiles)
-//   - Deck.gl      → overlays a HeatmapLayer using WebGL
-//
-// ⚠️  IMPORTANT RULES:
-//   1. This is a CLIENT-ONLY component. Never import maplibre-gl or
-//      @deck.gl/* in a server file (.server.ts).
-//   2. The container div MUST have an explicit height (h-full).
-//   3. MapLibre CSS is imported globally in app/app.css.
-//   4. Do NOT use React-Leaflet, Google Maps, or Mapbox GL JS.
-//
-// HOW IT WORKS:
-//   1. We use `useRef` to get the container DOM element.
-//   2. `useEffect` initializes MapLibre GL after the component mounts
-//      (because MapLibre needs a real DOM element).
-//   3. DeckGL is initialized as a MapLibre custom layer via
-//      MapboxOverlay from @deck.gl/mapbox.
-//   4. HeatmapLayer reads `points` data (array of {lat, lng, weight}).
-// ─────────────────────────────────────────────────────────────────
 import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import { DeckGL } from "@deck.gl/react";
+import { ScatterplotLayer } from "@deck.gl/layers";
 import { HeatmapLayer } from "@deck.gl/aggregation-layers";
-// ── Map configuration ─────────────────────────────────────────────
-// Default center: Indonesia (adjust as needed)
+import { DataFilterExtension } from "@deck.gl/extensions";
 const INITIAL_VIEW_STATE = {
-    longitude: 106.827,
-    latitude: -6.175,
-    zoom: 10,
-    pitch: 30,
+    longitude: 118.0149,
+    latitude: -2.5489,
+    zoom: 4, // Zoomed out to see Indonesia
+    pitch: 0,
     bearing: 0,
 };
-// Free OpenFreeMap tile style (no API key required)
 const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
-// ── Sample data (replace with real D1 data via loader) ────────────
-const SAMPLE_POINTS = [
-    { latitude: -6.175, longitude: 106.827, weight: 100 },
-    { latitude: -6.200, longitude: 106.816, weight: 80 },
-    { latitude: -6.160, longitude: 106.845, weight: 60 },
-    { latitude: -6.190, longitude: 106.830, weight: 90 },
-];
-export function MapView({ points = SAMPLE_POINTS }) {
+export function MapView({ points = [], filterYear = 2025 }) {
     const mapContainerRef = useRef(null);
     const mapRef = useRef(null);
     const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
@@ -61,32 +32,47 @@ export function MapView({ points = SAMPLE_POINTS }) {
             pitch: INITIAL_VIEW_STATE.pitch,
             bearing: INITIAL_VIEW_STATE.bearing,
         });
-        // Add navigation controls (zoom in/out, compass)
         map.addControl(new maplibregl.NavigationControl(), "top-right");
         mapRef.current = map;
-        // Cleanup on unmount
         return () => {
             map.remove();
             mapRef.current = null;
         };
     }, []);
-    // ── Deck.gl HeatmapLayer ─────────────────────────────────────────
+    // ── Deck.gl Layers ─────────────────────────────────────────
     const layers = [
+        // Heatmap for visual aggregation
         new HeatmapLayer({
             id: "heatmap-layer",
             data: points,
-            // Accessor functions tell Deck.gl how to read lat/lng/weight
             getPosition: (d) => [d.longitude, d.latitude],
-            getWeight: (d) => d.weight,
-            // Visual config
+            getWeight: () => 1,
             intensity: 1,
             threshold: 0.03,
             radiusPixels: 60,
+            getFilterValue: (d) => d.tahun,
+            filterRange: [filterYear, filterYear], // exact match for year
+            extensions: [new DataFilterExtension({ filterSize: 1 })],
         }),
+        // Scatterplot for exact hover tooltips
+        new ScatterplotLayer({
+            id: "scatter-layer",
+            data: points,
+            pickable: true,
+            opacity: 0.8,
+            stroked: true,
+            filled: true,
+            radiusScale: 6,
+            radiusMinPixels: 4,
+            radiusMaxPixels: 10,
+            lineWidthMinPixels: 1,
+            getPosition: (d) => [d.longitude, d.latitude],
+            getFillColor: [255, 140, 0],
+            getLineColor: [0, 0, 0],
+            getFilterValue: (d) => d.tahun,
+            filterRange: [filterYear, filterYear],
+            extensions: [new DataFilterExtension({ filterSize: 1 })],
+        })
     ];
-    return (
-    // Relative container — Deck.gl positions itself absolutely inside
-    _jsxs("div", { className: "relative h-full w-full", children: [_jsx("div", { ref: mapContainerRef, className: "absolute inset-0 h-full w-full", "aria-label": "Interactive geospatial map", role: "application" }), _jsx(DeckGL, { viewState: viewState, onViewStateChange: ({ viewState: vs }) => setViewState(vs), layers: layers, style: { position: "absolute", inset: "0" }, 
-                // controller={true} enables mouse/touch interaction
-                controller: true })] }));
+    return (_jsxs("div", { className: "relative h-full w-full", children: [_jsx("div", { ref: mapContainerRef, className: "absolute inset-0 h-full w-full", "aria-label": "Interactive geospatial map", role: "application" }), _jsx(DeckGL, { viewState: viewState, onViewStateChange: ({ viewState: vs }) => setViewState(vs), layers: layers, style: { position: "absolute", inset: "0" }, controller: true, getTooltip: ({ object }) => object && `${object.judul} (${object.tahun})\n${object.lokasi_teks || 'Tidak ada lokasi'}` })] }));
 }

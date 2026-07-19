@@ -2,88 +2,131 @@
 // app/routes/app/data.tsx
 // Route: GET /app/data
 //
-// Fetches location rows from Cloudflare D1 and displays them
-// in a table. This is a server-rendered route.
+// Fetches arsip rows from Cloudflare D1 with FTS5 support.
 // ─────────────────────────────────────────────────────────────────
 
-import { data } from "react-router";
+import { data, Form, useSubmit, useNavigation } from "react-router";
 import type { Route } from "./+types/data";
 import { getDB, dbQuery } from "~/lib/db.server";
-import { formatDate } from "~/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────
-interface LocationRow {
-  id: number;
-  name: string;
+export interface ArsipRow {
+  id_arsip: string;
+  judul: string;
+  deskripsi: string;
+  tahun: number;
+  lokasi_teks: string;
   latitude: number;
   longitude: number;
-  intensity: number;
-  created_at: string;
 }
 
 // ── Loader (server) ───────────────────────────────────────────────
-// Runs on the server/edge. Fetches data from D1 before rendering.
-export async function loader({ context }: Route.LoaderArgs) {
+export async function loader({ request, context }: Route.LoaderArgs) {
+  const url = new URL(request.url);
+  const q = url.searchParams.get("q") || "";
   const db = getDB(context);
-  const locations = await dbQuery<LocationRow>(
-    db,
-    "SELECT id, name, latitude, longitude, intensity, created_at FROM locations ORDER BY created_at DESC LIMIT 100"
-  );
-  return data({ locations });
+
+  let arsip: ArsipRow[] = [];
+
+  if (q) {
+    // FTS5 query
+    const sql = `
+      SELECT a.id_arsip, a.judul, a.deskripsi, a.tahun, a.lokasi_teks, a.latitude, a.longitude
+      FROM arsip a
+      JOIN arsip_fts f ON a.id_arsip = f.id_arsip
+      WHERE arsip_fts MATCH ?
+      ORDER BY rank
+      LIMIT 100
+    `;
+    arsip = await dbQuery<ArsipRow>(db, sql, [q]);
+  } else {
+    // Recent items
+    const sql = `
+      SELECT id_arsip, judul, deskripsi, tahun, lokasi_teks, latitude, longitude
+      FROM arsip
+      ORDER BY created_at DESC
+      LIMIT 100
+    `;
+    arsip = await dbQuery<ArsipRow>(db, sql);
+  }
+
+  return data({ arsip, q });
 }
 
 // ── Meta ──────────────────────────────────────────────────────────
 export const meta: Route.MetaFunction = () => [
-  { title: "Data — Kronotara" },
+  { title: "Data Arsip — Kronotara" },
 ];
 
 // ── Page Component ────────────────────────────────────────────────
 export default function DataPage({ loaderData }: Route.ComponentProps) {
-  const { locations } = loaderData;
+  const { arsip, q } = loaderData;
+  const submit = useSubmit();
+  const navigation = useNavigation();
+  const isSearching = navigation.state === "loading";
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold">Location Data</h1>
+      <h1 className="text-2xl font-bold">Data Arsip</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        Showing up to 100 most recent entries from D1.
+        Jelajahi dan cari metadata arsip (menampilkan hingga 100 baris).
       </p>
 
+      {/* Search Bar */}
+      <div className="mt-6">
+        <Form 
+          id="search-form" 
+          role="search"
+          onChange={(event) => {
+            const isFirstSearch = q === null;
+            submit(event.currentTarget, { replace: !isFirstSearch });
+          }}
+        >
+          <input
+            type="search"
+            name="q"
+            defaultValue={q}
+            placeholder="Cari berdasarkan judul atau deskripsi..."
+            className="w-full max-w-md rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          {isSearching && <span className="ml-3 text-sm text-muted-foreground">Mencari...</span>}
+        </Form>
+      </div>
+
       {/* Empty state */}
-      {locations.length === 0 && (
+      {arsip.length === 0 && (
         <div className="mt-8 rounded-xl border border-border bg-card p-8 text-center text-muted-foreground">
-          No data yet. Run the D1 migration then insert some rows.
+          {q ? "Tidak ada hasil pencarian yang cocok." : "Belum ada data arsip. Jalankan injeksi data / cron terlebih dahulu."}
         </div>
       )}
 
       {/* Data table */}
-      {locations.length > 0 && (
+      {arsip.length > 0 && (
         <div className="mt-6 overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted">
               <tr>
-                {["ID", "Name", "Lat", "Lng", "Intensity", "Created"].map((h) => (
-                  <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground">
+                {["Tahun", "Judul", "Lokasi", "Lat", "Lng"].map((h) => (
+                  <th key={h} className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {locations.map((row: LocationRow, i: number) => (
+              {arsip.map((row: ArsipRow, i: number) => (
                 <tr
-                  key={row.id}
+                  key={row.id_arsip}
                   className={i % 2 === 0 ? "bg-card" : "bg-muted/30"}
                 >
-                  <td className="px-4 py-3 text-muted-foreground">{row.id}</td>
-                  <td className="px-4 py-3 font-medium">{row.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{row.latitude.toFixed(6)}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{row.longitude.toFixed(6)}</td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                      {row.intensity}
-                    </span>
+                  <td className="px-4 py-3 font-semibold text-primary">{row.tahun}</td>
+                  <td className="px-4 py-3 font-medium min-w-[300px]">
+                    <div className="font-bold">{row.judul}</div>
+                    <div className="text-xs text-muted-foreground mt-1 line-clamp-2" title={row.deskripsi}>{row.deskripsi}</div>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{formatDate(row.created_at)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{row.lokasi_teks || "-"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{row.latitude?.toFixed(4) || "-"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{row.longitude?.toFixed(4) || "-"}</td>
                 </tr>
               ))}
             </tbody>

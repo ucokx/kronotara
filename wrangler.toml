@@ -27,7 +27,13 @@ migrations_dir = "migrations"
 # ──────────────────────────────────────────────
 [vars]
 APP_ENV = "development"
+CRON_SECRET = "default_secret_for_local_dev"
 
+# ──────────────────────────────────────────────
+# Cron Triggers (runs /api/ingest)
+# ──────────────────────────────────────────────
+[triggers]
+crons = ["0 0 * * *"]
 # ──────────────────────────────────────────────
 # Local dev overrides (not deployed)
 # ──────────────────────────────────────────────

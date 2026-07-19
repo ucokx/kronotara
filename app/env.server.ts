@@ -12,6 +12,9 @@ export interface Env {
   /** App environment identifier: "development" | "production" */
   APP_ENV: string;
 
+  /** Secret token to secure the /api/ingest cron endpoint */
+  CRON_SECRET: string;
+
   // Add additional bindings here as your project grows:
   // SESSION_KV: KVNamespace;
   // MY_BUCKET: R2Bucket;
