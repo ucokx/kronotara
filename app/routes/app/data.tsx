@@ -24,7 +24,7 @@ export interface ArsipRow {
 export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);
   const q = url.searchParams.get("q") || "";
-  const db = getDB(context);
+  const db = await getDB(context);
 
   let arsip: ArsipRow[] = [];
 
@@ -121,7 +121,16 @@ export default function DataPage({ loaderData }: Route.ComponentProps) {
                 >
                   <td className="px-4 py-3 font-semibold text-primary">{row.tahun}</td>
                   <td className="px-4 py-3 font-medium min-w-[300px]">
-                    <div className="font-bold">{row.judul}</div>
+                    <a 
+                      href={`https://data.go.id/dataset/${row.id_arsip}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1"
+                      title="Buka sumber asli di data.go.id"
+                    >
+                      {row.judul}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                    </a>
                     <div className="text-xs text-muted-foreground mt-1 line-clamp-2" title={row.deskripsi}>{row.deskripsi}</div>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{row.lokasi_teks || "-"}</td>

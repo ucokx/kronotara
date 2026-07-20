@@ -14,14 +14,31 @@ const DATA_URLS = [
   "https://data.go.id/api/dataset/download?url=aHR0cCUzQSUyRiUyRjEwLjQyLjAuMTAlM0E1MDAwJTJGYXBpJTJGMyUyRmFjdGlvbiUyRnBhY2thZ2Vfc2hvdyUzRmlkJTNEMjE0ZTU2YzAtNGNiMy00OTIyLWIzYzYtMGNlMjI2ZWEyYjVh&filename=214e56c0-4cb3-4922-b3c6-0ce226ea2b5a.json"
 ];
 
-// Helper to generate a random coordinate in Indonesia (for demo/MVP if no geocode available)
-function getRandomIndonesiaCoord() {
-  const latMin = -10, latMax = 5;
-  const lngMin = 95, lngMax = 140;
-  return {
-    latitude: Math.random() * (latMax - latMin) + latMin,
-    longitude: Math.random() * (lngMax - lngMin) + lngMin,
-  };
+async function geocodeLokasi(lokasi_teks: string) {
+  if (!lokasi_teks) return { latitude: null, longitude: null };
+  
+  // Clean up typical government organization names to improve search hit rate
+  let query = lokasi_teks.replace(/Kementerian /i, "").replace(/Badan /i, "").trim();
+  
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`, {
+      headers: {
+        "User-Agent": "Kronotara-App/1.0"
+      }
+    });
+    if (!res.ok) return { latitude: null, longitude: null };
+    
+    const data = (await res.json()) as any;
+    if (data && data.length > 0) {
+      return {
+        latitude: parseFloat(data[0].lat),
+        longitude: parseFloat(data[0].lon)
+      };
+    }
+  } catch (e) {
+    console.error("Geocoding error:", e);
+  }
+  return { latitude: null, longitude: null };
 }
 
 export async function loader({ request, context }: Route.LoaderArgs) {
@@ -34,9 +51,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const db = getDB(context);
+  const db = await getDB(context);
   let ingested = 0;
   let errors = [];
+
+  // Clear simulated data before inserting real data
+  await db.prepare("DELETE FROM arsip WHERE id_arsip LIKE 'sim-%'").run();
 
   for (const url of DATA_URLS) {
     try {
@@ -58,11 +78,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       
       const lokasi_teks = record.organization?.title || "";
       
-      // Dummy geocoding for MVP to populate heatmap
-      const { latitude, longitude } = getRandomIndonesiaCoord();
+      // Perform geocoding based on organization/location text
+      const { latitude, longitude } = await geocodeLokasi(lokasi_teks);
 
       // Upsert into D1 using standard SQL
-      // D1 doesn't have native UPSERT if we don't have constraints, but id_arsip is PRIMARY KEY
       const sql = `
         INSERT INTO arsip (id_arsip, judul, deskripsi, tahun, lokasi_teks, latitude, longitude)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -87,7 +106,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   return Response.json({
     success: true,
-    message: `Ingested ${ingested} records.`,
+    message: `Ingested ${ingested} real records from data.go.id.`,
     errors: errors.length > 0 ? errors : undefined
   });
 }

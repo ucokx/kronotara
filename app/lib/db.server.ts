@@ -32,15 +32,32 @@ import type { AppLoadContext } from "react-router";
  * @returns D1Database instance
  * @throws Error if DB binding is missing (check wrangler.toml)
  */
-export function getDB(context: AppLoadContext): D1Database {
-  const env = (context as any).cloudflare.env as Env;
-  if (!env.DB) {
-    throw new Error(
-      "[db.server] DB binding not found. " +
-      "Check wrangler.toml — ensure [[d1_databases]] is configured and database_id is set."
-    );
+let devEnv: any = null;
+
+export async function getDB(context: AppLoadContext): Promise<D1Database> {
+  // Fallback to try to find env
+  const env = ((context as any).cloudflare?.env) || ((context as any).env) || (context as any);
+  
+  if (env && env.DB) {
+    return env.DB;
   }
-  return env.DB;
+
+  if (process.env.NODE_ENV === "development") {
+    if (!devEnv) {
+      const getWrangler = new Function('return import("wrangler")');
+      const { getPlatformProxy } = await getWrangler();
+      const proxy = await getPlatformProxy();
+      devEnv = proxy.env;
+    }
+    if (devEnv && devEnv.DB) {
+      return devEnv.DB;
+    }
+  }
+
+  throw new Error(
+    "[db.server] DB binding not found. " +
+    "Check wrangler.toml — ensure [[d1_databases]] is configured and database_id is set."
+  );
 }
 
 // ── Query Helpers ─────────────────────────────────────────────────

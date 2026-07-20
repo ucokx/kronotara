@@ -14,7 +14,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   let dbStatus = "ok";
 
   try {
-    const db = getDB(context);
+    const db = await getDB(context);
     // Lightweight query to verify D1 connectivity
     await db.prepare("SELECT 1").first();
   } catch (err) {

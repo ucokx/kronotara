@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────────
 // app/components/map/MapView.tsx
 // ─────────────────────────────────────────────────────────────────
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import maplibregl from "maplibre-gl";
+import Map from "react-map-gl/maplibre";
 import { DeckGL } from "@deck.gl/react";
 import { ScatterplotLayer } from "@deck.gl/layers";
 import { HeatmapLayer } from "@deck.gl/aggregation-layers";
@@ -34,31 +35,7 @@ interface MapViewProps {
 }
 
 export function MapView({ points = [], filterYear = 2025 }: MapViewProps) {
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<maplibregl.Map | null>(null);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
-
-  // ── Initialize MapLibre map ──────────────────────────────────────
-  useEffect(() => {
-    if (!mapContainerRef.current || mapRef.current) return;
-
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: MAP_STYLE,
-      center: [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
-      zoom: INITIAL_VIEW_STATE.zoom,
-      pitch: INITIAL_VIEW_STATE.pitch,
-      bearing: INITIAL_VIEW_STATE.bearing,
-    });
-
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
-    mapRef.current = map;
-
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
-  }, []);
 
   // ── Deck.gl Layers ─────────────────────────────────────────
   const layers = [
@@ -68,11 +45,11 @@ export function MapView({ points = [], filterYear = 2025 }: MapViewProps) {
       data: points,
       getPosition: (d: ArsipPoint) => [d.longitude, d.latitude],
       getWeight: () => 1,
-      intensity: 1,
-      threshold: 0.03,
-      radiusPixels: 60,
+      intensity: 1.5,
+      threshold: 0.05,
+      radiusPixels: 45,
       getFilterValue: (d: ArsipPoint) => d.tahun,
-      filterRange: [filterYear, filterYear], // exact match for year
+      filterRange: [0, filterYear], // all data up to selected year
       extensions: [new DataFilterExtension({ filterSize: 1 })],
     } as any),
     // Scatterplot for exact hover tooltips
@@ -91,30 +68,28 @@ export function MapView({ points = [], filterYear = 2025 }: MapViewProps) {
       getFillColor: [255, 140, 0],
       getLineColor: [0, 0, 0],
       getFilterValue: (d: ArsipPoint) => d.tahun,
-      filterRange: [filterYear, filterYear],
+      filterRange: [0, filterYear],
       extensions: [new DataFilterExtension({ filterSize: 1 })],
     } as any)
   ];
 
   return (
-    <div className="relative h-full w-full">
-      <div
-        ref={mapContainerRef}
-        className="absolute inset-0 h-full w-full"
-        aria-label="Interactive geospatial map"
-        role="application"
-      />
-
+    <div className="relative h-full w-full" aria-label="Interactive geospatial map" role="application">
       <DeckGL
-        viewState={viewState}
+        initialViewState={viewState}
         onViewStateChange={({ viewState: vs }) => setViewState(vs as any)}
         layers={layers}
-        style={{ position: "absolute", inset: "0" }}
         controller={true}
         getTooltip={({ object }: any) =>
-          object && `${object.judul} (${object.tahun})\n${object.lokasi_teks || 'Tidak ada lokasi'}`
+          object ? `${object.judul} (${object.tahun})\n${object.lokasi_teks || 'Tidak ada lokasi'}` : null
         }
-      />
+      >
+        <Map
+          mapLib={maplibregl as any}
+          mapStyle={MAP_STYLE}
+          reuseMaps
+        />
+      </DeckGL>
     </div>
   );
 }

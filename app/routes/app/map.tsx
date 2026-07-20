@@ -10,7 +10,7 @@ import { getDB, dbQuery } from "~/lib/db.server";
 import { MapView } from "~/components/map/MapView";
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const db = getDB(context);
+  const db = await getDB(context);
   const sql = `
     SELECT id_arsip, judul, deskripsi, tahun, lokasi_teks, latitude, longitude 
     FROM arsip 
