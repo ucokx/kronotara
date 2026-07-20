@@ -11,7 +11,7 @@ pages_build_output_dir = "./build/client"
 [[d1_databases]]
 binding = "DB"           # Accessed as env.DB in loaders/actions
 database_name = "kronotara-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "cf7d990c-4568-4983-9fff-af7b8162f595"
 migrations_dir = "migrations"
 
 # ──────────────────────────────────────────────
@@ -20,7 +20,7 @@ migrations_dir = "migrations"
 # ──────────────────────────────────────────────
 # [[kv_namespaces]]
 # binding = "SESSION_KV"
-# id = "REPLACE_WITH_KV_NAMESPACE_ID"
+# id = "pubweb_kronotara_kv"
 
 # ──────────────────────────────────────────────
 # Environment variables

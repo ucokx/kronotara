@@ -1,5 +1,6 @@
 # 🗺️ Kronotara 
 
+![Kronotara Heatmap](./public/hero-heatmap.png)
 **Kronotara** (Kronologi Nusantara) adalah sebuah platform pemetaan interaktif dan mesin pencari arsip sejarah tingkat lanjut. Sistem ini memungkinkan pengguna untuk mengeksplorasi arsip-arsip nasional Indonesia secara visual melalui *Heatmap Geospatial* dan melakukan pencarian teks arsip berkecepatan tinggi berkat integrasi SQLite FTS5.
 
 Dibangun dengan arsitektur modern berbasis Edge Computing menggunakan infrastruktur **Cloudflare Pages** dan **Cloudflare D1** (Serverless SQL).
